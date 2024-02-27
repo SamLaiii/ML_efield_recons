@@ -140,7 +140,7 @@ class NoisyDataset(Dataset):
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(f'Device set to : {device}')
 
-snr_values = [0.5,0.6,0.7,0.8,0.9,1,2,3]
+snr_values = [1,2,3]
 num_epochs = 200
 model = Autoencoder().to(device)
 criterion = nn.MSELoss()
