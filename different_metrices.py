@@ -437,64 +437,64 @@ snr_values = [3]  # SNR values to simulate noisy conditions
 num_epochs = 100
 
 ####################### Training ##################################
-for snr_value in snr_values:
-    for kernel_size in kernel_sizes:
-        print(f'snr_value={snr_value}')
-        model = Autoencoder(kernel_size=kernel_size).to(device)  # Initialize the model with given kernel size
-        base_lr = 0.0005  # The lower bound of the learning rate range for the cycle.
-        max_lr = 0.006 
-        optimizer = optim.Adam(model.parameters(), lr=base_lr)  # Initialize the optimizer with given learning rate
-        scheduler = CyclicLR(optimizer, base_lr=base_lr, max_lr=max_lr, 
-                     step_size_up=5, step_size_down=20, 
-                     mode='triangular', cycle_momentum=False)
+# for snr_value in snr_values:
+    # for kernel_size in kernel_sizes:
+    #     print(f'snr_value={snr_value}')
+    #     model = Autoencoder(kernel_size=kernel_size).to(device)  # Initialize the model with given kernel size
+    #     base_lr = 0.0005  # The lower bound of the learning rate range for the cycle.
+    #     max_lr = 0.006 
+    #     optimizer = optim.Adam(model.parameters(), lr=base_lr)  # Initialize the optimizer with given learning rate
+    #     scheduler = CyclicLR(optimizer, base_lr=base_lr, max_lr=max_lr, 
+    #                  step_size_up=5, step_size_down=20, 
+    #                  mode='triangular', cycle_momentum=False)
         
-        criterion = psnr_loss #### Instead of using MSE, use psnr to calculate the loss in training 
-        ### if want to use MSE, use nn.mseloss()
+    #     criterion = psnr_loss #### Instead of using MSE, use psnr to calculate the loss in training 
+    #     ### if want to use MSE, use nn.mseloss()
 
-        train_loader, valid_loader, test_loader = prepare_denoise_data_scikit(
-                ndat_total=4100, ndat_train=2048, ndat_valid=2048, ndat_test=4, 
-                save_csv=False, directory=os.getcwd(), batch_size=1, plot=False
-            )
-        test_dataset = test_loader.dataset  # Get test dataset
+    #     train_loader, valid_loader, test_loader = prepare_denoise_data_scikit(
+    #             ndat_total=4100, ndat_train=2048, ndat_valid=2048, ndat_test=4, 
+    #             save_csv=False, directory=os.getcwd(), batch_size=1, plot=False
+    #         )
+    #     test_dataset = test_loader.dataset  # Get test dataset
 
-        noisy_test_dataset = NoisyDataset(test_dataset, snr_value=snr_value)  # Create noisy test dataset with given SNR value
+    #     noisy_test_dataset = NoisyDataset(test_dataset, snr_value=snr_value)  # Create noisy test dataset with given SNR value
             
-        noisy_train_loader = DataLoader(NoisyDataset(train_loader.dataset, snr_value=snr_value), batch_size=5, shuffle=True)  # Noisy training data loader
+    #     noisy_train_loader = DataLoader(NoisyDataset(train_loader.dataset, snr_value=snr_value), batch_size=5, shuffle=True)  # Noisy training data loader
 
-        noisy_valid_loader = DataLoader(NoisyDataset(valid_loader.dataset, snr_value=snr_value), batch_size=5, shuffle=True)  # Noisy validation data loader
+    #     noisy_valid_loader = DataLoader(NoisyDataset(valid_loader.dataset, snr_value=snr_value), batch_size=5, shuffle=True)  # Noisy validation data loader
 
-        noisy_test_loader = DataLoader(noisy_test_dataset, batch_size=1, shuffle=True)  # Noisy test data loader
+    #     noisy_test_loader = DataLoader(noisy_test_dataset, batch_size=1, shuffle=True)  # Noisy test data loader
 
-        # Train and validate the model
-        train_losses, valid_losses, validation_psnr, learning_rates, validation_peak_to_peak = train_and_validate_model(
-        model, noisy_train_loader, noisy_valid_loader, criterion, optimizer, scheduler = scheduler, num_epochs= num_epochs , device=device
-        )
+    #     # Train and validate the model
+    #     train_losses, valid_losses, validation_psnr, learning_rates, validation_peak_to_peak = train_and_validate_model(
+    #     model, noisy_train_loader, noisy_valid_loader, criterion, optimizer, scheduler = scheduler, num_epochs= num_epochs , device=device
+    #     )
 
-        # Calculate the psnr with noise signals and original signal
-        original_signals, reconstructed_signals = get_reconstructed_signals(model, noisy_test_loader, device)  # Get original and reconstructed signals
+    #     # Calculate the psnr with noise signals and original signal
+    #     original_signals, reconstructed_signals = get_reconstructed_signals(model, noisy_test_loader, device)  # Get original and reconstructed signals
 
-        psnr_values = []  # List to store PSNR values for each test sample
+    #     psnr_values = []  # List to store PSNR values for each test sample
 
-        for i in range(len(original_signals)):
+    #     for i in range(len(original_signals)):
 
-            original_signal = original_signals[i].squeeze()  # Flatten signal
+    #         original_signal = original_signals[i].squeeze()  # Flatten signal
                 
-            reconstructed_signal = reconstructed_signals[i].squeeze()  # Flatten signal
+    #         reconstructed_signal = reconstructed_signals[i].squeeze()  # Flatten signal
 
-            psnr_value = calculate_psnr_with_peak(original_signal, reconstructed_signal)  # Calculate PSNR
+    #         psnr_value = calculate_psnr_with_peak(original_signal, reconstructed_signal)  # Calculate PSNR
 
-            psnr_values.append(psnr_value)  # Store PSNR value
+    #         psnr_values.append(psnr_value)  # Store PSNR value
 
-        average_psnr = np.mean(psnr_values)  # Calculate average PSNR across all test samples
+    #     average_psnr = np.mean(psnr_values)  # Calculate average PSNR across all test samples
 
-        print(f"Learning Rate: {base_lr}, SNR Value: {snr_value}, Kernel Size: {kernel_size}")
+    #     print(f"Learning Rate: {base_lr}, SNR Value: {snr_value}, Kernel Size: {kernel_size}")
 
-        print(f"Average PSNR on Test Set: {average_psnr} dB")  # Print average PSNR
+    #     print(f"Average PSNR on Test Set: {average_psnr} dB")  # Print average PSNR
 
-        epochs = range(1, num_epochs + 1)
+    #     epochs = range(1, num_epochs + 1)
 
-        plot_metrics(epochs, train_losses, valid_losses, validation_psnr, learning_rates= learning_rates, validation_peak_to_peak = validation_peak_to_peak)
+    #     plot_metrics(epochs, train_losses, valid_losses, validation_psnr, learning_rates= learning_rates, validation_peak_to_peak = validation_peak_to_peak)
 
-        visualize_denoised_signal(model, noisy_test_loader, device, snr_values=[snr_value], mse_values=valid_losses[-1], psnr=validation_psnr[-1], peak_to_peak=validation_peak_to_peak[-1] )
+    #     visualize_denoised_signal(model, noisy_test_loader, device, snr_values=[snr_value], mse_values=valid_losses[-1], psnr=validation_psnr[-1], peak_to_peak=validation_peak_to_peak[-1] )
 
-        plot_loss_vs_psnr(valid_losses, validation_psnr)
+    #     plot_loss_vs_psnr(valid_losses, validation_psnr)
