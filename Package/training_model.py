@@ -10,18 +10,21 @@ from training_function import psnr_loss
 from training_function import get_peak_amplitude
 from training_function import calculate_psnr_with_peak
 from training_function import psnr_loss
-from training_function import calculate_psnr_with_peak
+from training_function import peak_to_peak_ratio
+from training_function import psnr
 
+import os
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from scipy.signal import hilbert
-from skimage.metrics import peak_signal_noise_ratio as psnr
 from torch.optim.lr_scheduler import CyclicLR
 import matplotlib as mpl
+import matplotlib.pyplot as plt
 from torch.utils.data import Dataset, DataLoader
 
-save_folder = "Test" #### Name of the file 
+save_folder = "different_signal_regions" #### Name of the file 
 
 if not os.path.exists(save_folder):
     os.makedirs(save_folder) 
@@ -43,7 +46,7 @@ print(f'shape of noised_trace_z:{np.shape(noised_trace_z)}')
     
 NJ_directory = "ZHAireS-NJ/sim_Xiaodushan_20221025_220000_RUN0_CD_ZHAireS_0000NJ" 
 
-clean_time, clean_trace_x, clean_trace_y, clean_trace_z = traces(NJ_directory, nb_event=1000, min_primary_energy=1e9, min_zenith=85, max_zenith=88, plot=False, xmin=0, xmax=8192, ymin=0, ymax=8192, zmin=0, zmax=8192 )
+clean_time, clean_trace_x, clean_trace_y, clean_trace_z = traces(NJ_directory, nb_event=1000, min_primary_energy=1e9, min_zenith=80, max_zenith=88, plot=False, xmin=0, xmax=8192, ymin=0, ymax=8192, zmin=0, zmax=8192 )
 
 print(f'shape of clean_time:{np.shape(clean_time)}')
 print(f'shape of clean_trace_x:{np.shape(clean_trace_x)}')
@@ -59,12 +62,12 @@ train_indices, valid_indices, test_indices = split_indices(total_samples)
 
 train_dataset = CustomDataset(noised_signals, clean_signals, indices=train_indices)
 valid_dataset = CustomDataset(noised_signals, clean_signals, indices=valid_indices)
-test_dataset = CustomDataset(noised_signals, clean_signals, indices=test_indices)
+# test_dataset = CustomDataset(noised_signals, clean_signals, indices=test_indices)
 
 # Creating DataLoader instances for each dataset
 train_loader = DataLoader(train_dataset, batch_size=4, shuffle=True)
 valid_loader = DataLoader(valid_dataset, batch_size=4, shuffle=False)
-test_loader = DataLoader(test_dataset, batch_size=4,shuffle=False)   
+# test_loader = DataLoader(test_dataset, batch_size=4,shuffle=False)   
 
 
 
@@ -78,9 +81,9 @@ max_lr = 0.006
 model = Autoencoder(kernel_size=3).to(device)
 optimizer = optim.AdamW(model.parameters(), lr=base_lr,)
 criterion = nn.MSELoss()    #### The criterion could be changed to criterion = psnr_loss 
-# scheduler = CyclicLR(optimizer, base_lr=base_lr, max_lr=max_lr, 
-#                      step_size_up=5, step_size_down=20, 
-#                      mode='triangular', cycle_momentum=False)  # uncomment it if there are problems with gradient descent in learning.
+scheduler = CyclicLR(optimizer, base_lr=base_lr, max_lr=max_lr, 
+                     step_size_up=5, step_size_down=20, 
+                     mode='triangular', cycle_momentum=False)
 
 
 training_losses, validation_losses, validation_psnr, learning_rates, validation_peak_to_peak = [], [], [], [], []
@@ -138,40 +141,40 @@ print(f"Model saved to {model_path}")
 print("training is complete" )
 
 #### if you want to use different test dataset, uncomment below
-# test_directory = "ZHAireS/sim_Xiaodushan_20221025_220000_RUN0_CD_ZHAireS_0000/" #voltage_29-24992_L0_0000.root    
+test_directory = "ZHAireS/sim_Xiaodushan_20221025_220000_RUN0_CD_ZHAireS_0000/" #voltage_29-24992_L0_0000.root    
 
-# test_noised_time, test_noised_trace_x, test_noised_trace_y, test_noised_trace_z = traces(test_directory, nb_event=1000, min_primary_energy=1e9, min_zenith=85, max_zenith=88, plot=False, xmin=500, xmax=4596, ymin=1000, ymax=4796, zmin=0, zmax=4096 )
+test_noised_time, test_noised_trace_x, test_noised_trace_y, test_noised_trace_z = traces(test_directory, nb_event=1000, min_primary_energy=1e9, min_zenith=85, max_zenith=88, plot=False, xmin=500, xmax=4596, ymin=1000, ymax=4796, zmin=0, zmax=4096 )
 
-# print(f'shape of test noised_time:{np.shape(test_noised_time)}')
-# print(f'shape of test noised_trace_x:{np.shape(test_noised_trace_x)}')
-# print(f'shape of test noised_trace_y:{np.shape(test_noised_trace_y)}')
-# print(f'shape of test noised_trace_z:{np.shape(test_noised_trace_z)}')
+print(f'shape of test noised_time:{np.shape(test_noised_time)}')
+print(f'shape of test noised_trace_x:{np.shape(test_noised_trace_x)}')
+print(f'shape of test noised_trace_y:{np.shape(test_noised_trace_y)}')
+print(f'shape of test noised_trace_z:{np.shape(test_noised_trace_z)}')
         
     
     
-# test_NJ_directory = "ZHAireS-NJ/sim_Xiaodushan_20221025_220000_RUN0_CD_ZHAireS_0000NJ" 
-# test_clean_time, test_clean_trace_x, test_clean_trace_y, test_clean_trace_z = traces(test_NJ_directory, nb_event=1000, min_primary_energy=1e9, min_zenith=85, max_zenith=88, plot=False, xmin=500, xmax=4596, ymin=1000, ymax=4796, zmin=0, zmax=4096 )
+test_NJ_directory = "ZHAireS-NJ/sim_Xiaodushan_20221025_220000_RUN0_CD_ZHAireS_0000NJ" 
+test_clean_time, test_clean_trace_x, test_clean_trace_y, test_clean_trace_z = traces(test_NJ_directory, nb_event=1000, min_primary_energy=1e9, min_zenith=85, max_zenith=88, plot=False, xmin=500, xmax=4596, ymin=1000, ymax=4796, zmin=0, zmax=4096 )
 
-# print(f'shape of test clean_time:{np.shape(test_clean_time)}')
-# print(f'shape of test clean_trace_x:{np.shape(test_clean_trace_x)}')
-# print(f'shape of test clean_trace_y:{np.shape(test_clean_trace_y)}')
-# print(f'shape of test clean_trace_z:{np.shape(test_clean_trace_z)}')
+print(f'shape of test clean_time:{np.shape(test_clean_time)}')
+print(f'shape of test clean_trace_x:{np.shape(test_clean_trace_x)}')
+print(f'shape of test clean_trace_y:{np.shape(test_clean_trace_y)}')
+print(f'shape of test clean_trace_z:{np.shape(test_clean_trace_z)}')
 
 
 
-# noised_signals = (test_noised_trace_x, test_noised_trace_y, test_noised_trace_z)
-# clean_signals = (test_clean_trace_x, test_clean_trace_y, test_clean_trace_z)
-# total_samples = len(test_noised_trace_x)
-# train_indices, valid_indices, test_indices = split_indices(total_samples)
+noised_signals = (test_noised_trace_x, test_noised_trace_y, test_noised_trace_z)
+clean_signals = (test_clean_trace_x, test_clean_trace_y, test_clean_trace_z)
+total_samples = len(test_noised_trace_x)
+train_indices, valid_indices, test_indices = split_indices(total_samples)
 
-# train_dataset = CustomDataset(noised_signals, clean_signals, indices=train_indices)
-# valid_dataset = CustomDataset(noised_signals, clean_signals, indices=valid_indices)
-# test_dataset = CustomDataset(noised_signals, clean_signals, indices=test_indices)
+train_dataset = CustomDataset(noised_signals, clean_signals, indices=train_indices)
+valid_dataset = CustomDataset(noised_signals, clean_signals, indices=valid_indices)
+test_dataset = CustomDataset(noised_signals, clean_signals, indices=test_indices)
 
-# train_loader = DataLoader(train_dataset, batch_size=4, shuffle=True)
-# valid_loader = DataLoader(valid_dataset, batch_size=4, shuffle=False)
-# test_loader = DataLoader(test_dataset, batch_size=4,shuffle=False)   
-################################
+train_loader = DataLoader(train_dataset, batch_size=4, shuffle=True)
+valid_loader = DataLoader(valid_dataset, batch_size=4, shuffle=False)
+test_loader = DataLoader(test_dataset, batch_size=4,shuffle=False)   
+###############################
 
 
 device = torch.device("cpu")
@@ -190,7 +193,7 @@ with torch.no_grad():
         sample_idx = 0  # Index of the sample to plot
         channel_names = ['X Channel', 'Y Channel', 'Z Channel']
         
-        for channel_idx in range(3):  # Assuming 3 channels: X, Y, Z
+        for channel_idx in range(3): 
             clean_np = clean_data[sample_idx, channel_idx].cpu().numpy()
             noisy_np = noisy_data[sample_idx, channel_idx].cpu().numpy()
             denoised_np = denoised_output[sample_idx, channel_idx].cpu().numpy()
