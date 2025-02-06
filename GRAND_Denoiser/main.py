@@ -8,12 +8,11 @@ from scipy.signal import hilbert
 from torch.utils.data import Dataset, DataLoader
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from torchsummary import summary
 
 from old_model import Autoencoder
 from CNNModel import DualBranchAutoencoder
 
-from training_function import traces, CustomDataset, split_indices, plot_metrics, psnr_loss, get_peak_amplitude, calculate_psnr_with_peak, peak_to_peak_ratio, psnr, plot_snr_distribution, calculate_snr
+from training_function import traces, CustomDataset, split_indices, psnr_loss
 from train import train_validate
 from test import test 
 from hilbert import peak_amplitude, peak_time
@@ -47,18 +46,18 @@ def main(args):
 
     ##### data preparation
     time, frequency, noised_trace_x, clean_trace_x, noised_trace_y, clean_trace_y, noised_trace_z, clean_trace_z = traces(
-        args.directory, 
-        args.NJ_directory, 
-        nb_events=args.nb_events, 
-        mpe=args.mpe, 
-        min_zenith=args.min_zenith, 
-        max_zenith=args.max_zenith, 
-        band_filter = band_filter_voltage_mode,
-        band_filter_adc =  band_filter_adc_mode,
-        band_filter_efield = band_filter_efield_mode,
-        voltage = voltage_type,
-        ADC = adc_type,
-        efield = efield_type)
+        args.directory, # directory for Jitter folder
+        args.NJ_directory, # directory for Non-Jitter folder
+        nb_events=args.nb_events, # number of events 
+        mpe=args.mpe, # maximum potential energy 
+        min_zenith=args.min_zenith, # minimum zenith for data selection
+        max_zenith=args.max_zenith, # maximum zenith for data selection
+        band_filter = band_filter_voltage_mode, # filter voltage frequency outside between 50 ~ 200 MHz 
+        band_filter_adc =  band_filter_adc_mode, # filter voltage frequency outside between 50 ~ 200 MHz 
+        band_filter_efield = band_filter_efield_mode, # filter voltage frequency outside between 50 ~ 200 MHz 
+        voltage = voltage_type, # choose voltage data as training set
+        ADC = adc_type, # choose adc data as training set
+        efield = efield_type) # choose efield data as training set
     
     print(f'type of traces to train: {args.trace_type} ')
     print(f'shape of time:{np.shape(time)}')
@@ -89,11 +88,14 @@ def main(args):
     valid_loader = DataLoader(valid_dataset, batch_size=4, num_workers=4, shuffle=True, pin_memory=True)
     test_loader = DataLoader(test_dataset, batch_size=1, num_workers=4, shuffle=False, pin_memory=True)
 
-    model = Autoencoder().to(device)
+    model = DualBranchAutoencoder().to(device)
     print(model)
+
     base_lr = 0.0001
-    optimizer = optim.Adam(model.parameters(), lr=base_lr)
-        # Set the criterion based on the argument
+
+    optimizer = optim.Adam(model.parameters(), lr=base_lr, weight_decay = 0.00005)
+
+    # Set the criterion based on the argument
     if args.criterion == 'mse':
         criterion = nn.MSELoss()
     elif args.criterion == 'psnr':
@@ -183,19 +185,19 @@ def main(args):
              efield = efield_type)
         
 
-        peak_amplitude(dataloader=test_loader, 
-                       model=model, 
-                       device="cpu", 
-                       min_snr= args.min_snr, 
+        peak_amplitude(dataloader = test_loader, 
+                       model = model, 
+                       device = "cpu", 
+                       min_snr = args.min_snr, 
                        max_snr = args.max_snr,
-                       save_folder=save_folder)
+                       save_folder = save_folder)
         
-        peak_time(dataloader=test_loader, 
-                  model=model, 
-                  device="cpu", 
-                  min_snr=args.min_snr,
+        peak_time(dataloader = test_loader, 
+                  model = model, 
+                  device = "cpu", 
+                  min_snr = args.min_snr,
                   max_snr = args.max_snr, 
-                  save_folder=save_folder)
+                  save_folder = save_folder)
         
         print(f'All process are complete.')
 
@@ -225,6 +227,6 @@ if __name__ == '__main__':
 
     parser.add_argument('--max_snr', type = float, default = 10, help ='maximum of snr for the data display')
 
-    parser.add_argument('--trace_type', default = 'efield', choices= ['voltage','adc','efield'], help = 'Choose one of the trace type of training and testing')
+    parser.add_argument('--trace_type', default = 'adc', choices= ['voltage','adc','efield'], help = 'Choose one of the trace type of training and testing')
     args = parser.parse_args()
     main(args)
