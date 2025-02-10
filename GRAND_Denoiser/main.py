@@ -28,54 +28,41 @@ def main(args):
 
     print("Empty Folder is created")   
     mpl.rcParams['figure.max_open_warning'] = 50
+
     voltage_type = False
     adc_type = False
     efield_type = False
-    band_filter_voltage_mode = False
-    band_filter_adc_mode = False
-    band_filter_efield_mode = False
+
     if args.trace_type == 'voltage':
         voltage_type = True
-        band_filter_voltage_mode = True 
+
     if args.trace_type == 'adc':
         adc_type = True 
-        band_filter_adc_mode = True
+
     if args.trace_type == 'efield':
         efield_type = True 
-        band_filter_efield_mode = True
 
-    ##### data preparation
-    time, frequency, noised_trace_x, clean_trace_x, noised_trace_y, clean_trace_y, noised_trace_z, clean_trace_z = traces(
-        args.directory, # directory for Jitter folder
-        args.NJ_directory, # directory for Non-Jitter folder
-        nb_events=args.nb_events, # number of events 
-        mpe=args.mpe, # maximum potential energy 
-        min_zenith=args.min_zenith, # minimum zenith for data selection
-        max_zenith=args.max_zenith, # maximum zenith for data selection
-        band_filter = band_filter_voltage_mode, # filter voltage frequency outside between 50 ~ 200 MHz 
-        band_filter_adc =  band_filter_adc_mode, # filter voltage frequency outside between 50 ~ 200 MHz 
-        band_filter_efield = band_filter_efield_mode, # filter voltage frequency outside between 50 ~ 200 MHz 
-        voltage = voltage_type, # choose voltage data as training set
-        ADC = adc_type, # choose adc data as training set
-        efield = efield_type) # choose efield data as training set
-    
-    print(f'type of traces to train: {args.trace_type} ')
-    print(f'shape of time:{np.shape(time)}')
-    print(f'shape of frequency{np.shape(frequency)}')
-    print(f'shape of noised_trace_x:{np.shape(noised_trace_x)}')
-    print(f'shape of noised_trace_y:{np.shape(noised_trace_y)}')
-    print(f'shape of noised_trace_z:{np.shape(noised_trace_z)}')        
-    print(f'shape of clean_trace_x:{np.shape(clean_trace_x)}')
-    print(f'shape of clean_trace_y:{np.shape(clean_trace_y)}')
-    print(f'shape of clean_trace_z:{np.shape(clean_trace_z)}')
+    save_path_noised = os.path.join(args.save_folder_name, 'dc2_noised_signals.npz')
+    save_path_clean = os.path.join(args.save_folder_name, 'dc2_clean_signals.npz')
 
-    noised_signals = (noised_trace_x, noised_trace_y, noised_trace_z)
-    clean_signals = (clean_trace_x, clean_trace_y, clean_trace_z)
+    os.makedirs(save_folder, exist_ok=True)
+
+    try:
+        time_noised = np.load(save_path_noised)['time']
+        frequency_noised = np.load(save_path_noised)['frequency']
+        noised_signals = np.load(save_path_noised)['signals']
+        clean_signals = np.load(save_path_clean)['signals']
+        print(f'Successfully loaded signals')
+        print(f'shape of noised signals = {np.shape(noised_signals)}')
+        print(f'Shape of clean signals = {np.shape(clean_signals)}')
+    except FileNotFoundError:
+        print(f'Error: Signal files not found in {save_folder}')
+        raise
 
 #    plot_snr_distribution(clean_signals= clean_signals, noised_signals=noised_signals, save_folder= args.save_folder_name)
 
+    total_samples = np.shape(noised_signals)[1]
 
-    total_samples = len(noised_trace_x)
     train_indices, valid_indices, test_indices = split_indices(total_samples)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -172,8 +159,9 @@ def main(args):
     
     else:
         print(f'type of traces to test : {args.trace_type} ')
-        test(time=time, 
-             frequency=frequency, 
+
+        test(time=time_noised, 
+             frequency=frequency_noised, 
              testloader=test_loader, 
              model=model, 
              device="cpu", 
@@ -203,15 +191,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process some traces.')
-    parser.add_argument('--directory', type=str, required=True, help='Path to the main directory')
-
-    parser.add_argument('--NJ_directory', type=str, required=True, help='Path to the NJ directory')
-
-    parser.add_argument('--nb_events', type=int, default=1000, help='Number of events')
-
     parser.add_argument('--criterion', default='mse', choices=['mse', 'psnr'], help='Loss function: either MSE or PSNR')
-
-    parser.add_argument('--mpe', type=float, default=1e9, help='MPE value')
 
     parser.add_argument('--epochs', type = float, default = 100, help ='nums of epochs')
 
@@ -225,7 +205,7 @@ if __name__ == '__main__':
     
     parser.add_argument('--min_snr', type = float, default = 3, help ='minimum of snr for the data display')
 
-    parser.add_argument('--max_snr', type = float, default = 10, help ='maximum of snr for the data display')
+    parser.add_argument('--max_snr', type = float, default = 0.1, help ='maximum of snr for the data display')
 
     parser.add_argument('--trace_type', default = 'adc', choices= ['voltage','adc','efield'], help = 'Choose one of the trace type of training and testing')
     args = parser.parse_args()

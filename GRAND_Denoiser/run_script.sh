@@ -30,7 +30,8 @@ python --version
 export PYTHONPATH=/Users/923714256/grand
 
 # Run the main Python script with appropriate arguments
-srun --partition=gpucluster python main.py --directory /Users/923714256/0422_simulation/sim_Xiaodushan_20221025_220000_RUN0_CD_ZHAireS_0000 --NJ_directory /Users/923714256/0422_simulation/sim_Xiaodushan_20221025_220000_RUN0_CD_ZHAireS_0000NJ --save_folder "ADC_100_epochs"
+srun --partition=gpucluster python data_file.py --directory /Users/923714256/0422_simulation/sim_Xiaodushan_20221025_220000_RUN0_CD_ZHAireS_0000 --NJ_directory /Users/923714256/0422_simulation/sim_Xiaodushan_20221025_220000_RUN0_CD_ZHAireS_0000NJ --save_folder "ADC_100_epochs"
+srun --partition=gpucluster python main.py --save_folder "ADC_100_epochs"
 
 # Deactivate the conda environment
 conda deactivate
