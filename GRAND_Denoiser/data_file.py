@@ -3,9 +3,6 @@ import os
 import numpy as np
 from training_function import traces
 
-
-
-
 def main(args): 
 ##### data preparation
     current_directory = os.getcwd()

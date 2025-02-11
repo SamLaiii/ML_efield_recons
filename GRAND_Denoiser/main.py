@@ -4,7 +4,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from scipy.signal import hilbert
 from torch.utils.data import Dataset, DataLoader
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -62,7 +61,7 @@ def main(args):
 #    plot_snr_distribution(clean_signals= clean_signals, noised_signals=noised_signals, save_folder= args.save_folder_name)
 
     total_samples = np.shape(noised_signals)[1]
-
+    print(f'total_sample = {total_samples}')
     train_indices, valid_indices, test_indices = split_indices(total_samples)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -193,7 +192,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process some traces.')
     parser.add_argument('--criterion', default='mse', choices=['mse', 'psnr'], help='Loss function: either MSE or PSNR')
 
-    parser.add_argument('--epochs', type = float, default = 100, help ='nums of epochs')
+    parser.add_argument('--epochs', type = float, default = 1, help ='nums of epochs')
 
     parser.add_argument('--min_zenith', type=float, default= 70, help='Minimum zenith angle')
 
@@ -203,9 +202,9 @@ if __name__ == '__main__':
 
     parser.add_argument('--test_mode',default= False, help='Whether to run in test mode')
     
-    parser.add_argument('--min_snr', type = float, default = 3, help ='minimum of snr for the data display')
+    parser.add_argument('--min_snr', type = float, default = 0.1, help ='minimum of snr for the data display')
 
-    parser.add_argument('--max_snr', type = float, default = 0.1, help ='maximum of snr for the data display')
+    parser.add_argument('--max_snr', type = float, default = 3, help ='maximum of snr for the data display')
 
     parser.add_argument('--trace_type', default = 'adc', choices= ['voltage','adc','efield'], help = 'Choose one of the trace type of training and testing')
     args = parser.parse_args()

@@ -63,8 +63,8 @@ def test(testloader,
                         plt.xticks(fontsize=20)
                         plt.yticks(fontsize=20)
                     elif voltage:
-                        plt.plot(time[0], clean_np, label=f'Pure - {channel_names[channel_idx]}', color='blue')
-                        plt.plot(time[0], denoised_np, label=f'Denoised - MSE: {mse_value:.2f}, PSNR: {psnr_value:.2f}', linestyle='--', color='orange')
+                        plt.plot(time[0],clean_np, label=f'Pure - {channel_names[channel_idx]}', color='blue')
+                        plt.plot(time[0],denoised_np, label=f'Denoised - MSE: {mse_value:.2f}, PSNR: {psnr_value:.2f}', linestyle='--', color='orange')
                         plt.xlabel(r'Time [ns]',fontsize = 24)
                         plt.ylabel(r'Voltage [$\mu$V]',fontsize = 24)
                         # plt.title(f'Denoised vs Pure Signal - {channel_names[channel_idx]}', fontsize=20)
@@ -73,8 +73,8 @@ def test(testloader,
                         plt.xticks(fontsize=24)
                         plt.yticks(fontsize=24)
                     elif ADC:
-                        plt.plot(time[0],clean_np, label=f'Pure - {channel_names[channel_idx]}', color='blue')
-                        plt.plot(time[0],denoised_np, label=f'Denoised - MSE: {mse_value:.2f}, PSNR: {psnr_value:.2f}', linestyle='--', color='orange')
+                        plt.plot(clean_np, label=f'Pure - {channel_names[channel_idx]}', color='blue')
+                        plt.plot(denoised_np, label=f'Denoised - MSE: {mse_value:.2f}, PSNR: {psnr_value:.2f}', linestyle='--', color='orange')
                         plt.xlabel(f'Time Bin[ns]',fontsize = 24)
                         plt.ylabel(f'Counts',fontsize = 24)
                         plt.title(f'Pure Signal - {channel_names[channel_idx]}', fontsize=24)
@@ -121,14 +121,15 @@ def test(testloader,
                     
                     elif efield: 
                         plt.plot(time[0], noisy_np, label=f'Noisy signal - {channel_names[channel_idx]}, SNR = {snr:.2f}', color='red')
-                        plt.xlabel('Time (ns)',fontsize = 24)
-                        plt.ylabel('Efield (µV/m)',fontsize = 24)
+                        plt.xlabel('Time (ns)', fontsize = 24)
+                        plt.ylabel('Efield (µV/m)', fontsize = 24)
                         plt.title(f'Noisy Signal - {channel_names[channel_idx]}, SNR:{snr:.2f}', fontsize = 24)
                         plt.legend(fontsize = 24)
                         plt.xticks(fontsize = 24)
                         plt.yticks(fontsize = 24)
+
                     elif ADC:
-                        plt.plot(time[0], noisy_np, label=f'Noisy signal - {channel_names[channel_idx]}, SNR = {snr:.2f}', color='red')
+                        plt.plot(noisy_np, label=f'Noisy signal - {channel_names[channel_idx]}, SNR = {snr:.2f}', color='red')
                         plt.xlabel('Time Bin(ns)',fontsize = 24)
                         # plt.xlim(200, 712)
                         plt.ylabel('Counts',fontsize = 24)

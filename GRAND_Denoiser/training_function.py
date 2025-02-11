@@ -211,13 +211,68 @@ def traces(directory,
                             trace_adc_x_NJ = trace_adc_NJ[du_idx, 0]
                             trace_adc_y_NJ = trace_adc_NJ[du_idx, 1]
                             trace_adc_z_NJ = trace_adc_NJ[du_idx, 2]
+
+                            # -------------------------------
+                            # Slice-swap a fixed clean segment (indices 300-500 ns)
+                            # with a random noised segment.
+                            # That is, the clean signal region in the NJ trace [300:500]
+                            # will be replaced by a randomly selected segment from the noisy ADC trace,
+                            # and vice versa.
+                            # -------------------------------
+                            target_start, target_end = 300, 500  # fixed indices for the clean segment to swap
+                            target_length = target_end - target_start  # e.g. 200 ns
+                            # Choose a random noised segment (you can adjust the domain of selection as needed)
+                            if np.random.rand() < 0.5:
+                                # Choose from before the target (if there’s enough room)
+                                source_start = np.random.randint(0, target_start - target_length + 1)
+                            else:
+                                # Choose from after the target region
+                                source_start = np.random.randint(target_end, sig_size - target_length + 1)
+                            source_end = source_start + target_length
+
+                            # Create copies to manipulate without altering the originals
+                            spliced_x = trace_adc_x.copy()
+                            spliced_y = trace_adc_y.copy()
+                            spliced_z = trace_adc_z.copy()
+                            spliced_x_NJ = trace_adc_x_NJ.copy()
+                            spliced_y_NJ = trace_adc_y_NJ.copy()
+                            spliced_z_NJ = trace_adc_z_NJ.copy()
+
+                            # Perform the swap:
+                            # Save the original clean segment from the NJ (clean) trace
+                            temp_clean_x_NJ = spliced_x_NJ[target_start:target_end].copy()
+                            temp_clean_y_NJ = spliced_y_NJ[target_start:target_end].copy()
+                            temp_clean_z_NJ = spliced_z_NJ[target_start:target_end].copy()
+                            temp_clean_x = spliced_x[target_start:target_end].copy()
+                            temp_clean_y = spliced_y[target_start:target_end].copy()
+                            temp_clean_z = spliced_z[target_start:target_end].copy()
+
+
+                            # Replace the clean region [300:500] in the clean trace with the noisy segment
+                            spliced_x_NJ[target_start:target_end] = spliced_x_NJ[source_start:source_end]
+                            spliced_y_NJ[target_start:target_end] = spliced_y_NJ[source_start:source_end]
+                            spliced_z_NJ[target_start:target_end] = spliced_z_NJ[source_start:source_end]
+
+                            spliced_x[target_start:target_end] = spliced_x[source_start:source_end]
+                            spliced_y[target_start:target_end] = spliced_y[source_start:source_end]
+                            spliced_z[target_start:target_end] = spliced_z[source_start:source_end]
+                            # Put the clean segment into the noisy trace at the random location
+
+                            spliced_x[source_start:source_end] = temp_clean_x
+                            spliced_y[source_start:source_end] = temp_clean_y
+                            spliced_z[source_start:source_end] = temp_clean_z
+
+                            spliced_x_NJ[source_start:source_end] = temp_clean_x_NJ
+                            spliced_y_NJ[source_start:source_end] = temp_clean_y_NJ
+                            spliced_z_NJ[source_start:source_end] = temp_clean_z_NJ
+
                             trace_adc_time = np.arange(0, len(trace_adc_z)) * dt_ns_l0[du_idx] - t_pre_L0
-                            if not (np.all(trace_adc_x == 0) and np.all(trace_adc_y == 0) and np.all(trace_adc_z == 0) and
-                                    np.all(trace_adc_x_NJ == 0) and np.all(trace_adc_y_NJ == 0) and np.all(trace_adc_z_NJ == 0)):
+                            if not (np.all(spliced_x == 0) and np.all(spliced_y == 0) and np.all(spliced_z == 0) and
+                                    np.all(spliced_x_NJ == 0) and np.all(spliced_y_NJ == 0) and np.all(spliced_z_NJ == 0)):
                                 if band_filter_adc:
-                                    ifft_clean_x, ifft_noisy_x = bandwidth_filter(trace_adc_time , trace_adc_x_NJ, trace_adc_x)
-                                    ifft_clean_y, ifft_noisy_y = bandwidth_filter(trace_adc_time , trace_adc_y_NJ, trace_adc_y)
-                                    ifft_clean_z, ifft_noisy_z = bandwidth_filter(trace_adc_time , trace_adc_z_NJ, trace_adc_z)
+                                    ifft_clean_x, ifft_noisy_x = bandwidth_filter(trace_adc_time , spliced_x_NJ, spliced_x)
+                                    ifft_clean_y, ifft_noisy_y = bandwidth_filter(trace_adc_time , spliced_y_NJ, spliced_y)
+                                    ifft_clean_z, ifft_noisy_z = bandwidth_filter(trace_adc_time , spliced_z_NJ, spliced_z)
                                     x_train_dataset.append(ifft_noisy_x)
                                     y_train_dataset.append(ifft_noisy_y)
                                     z_train_dataset.append(ifft_noisy_z)
@@ -226,12 +281,12 @@ def traces(directory,
                                     z_test_dataset.append(ifft_clean_z)
                                     time.append(trace_adc_time) 
                                 else:
-                                    x_train_dataset.append(trace_adc_x)
-                                    y_train_dataset.append(trace_adc_y)
-                                    z_train_dataset.append(trace_adc_z)
-                                    x_test_dataset.append(trace_adc_x_NJ)
-                                    y_test_dataset.append(trace_adc_y_NJ)
-                                    z_test_dataset.append(trace_adc_z_NJ)
+                                    x_train_dataset.append(spliced_x)
+                                    y_train_dataset.append(spliced_y)
+                                    z_train_dataset.append(spliced_z)
+                                    x_test_dataset.append(spliced_x_NJ)
+                                    y_test_dataset.append(spliced_y_NJ)
+                                    z_test_dataset.append(spliced_z_NJ)
                                     time.append(trace_adc_time) 
 
                         elif efield:
