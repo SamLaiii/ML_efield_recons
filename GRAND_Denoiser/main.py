@@ -15,6 +15,7 @@ from training_function import traces, CustomDataset, split_indices, psnr_loss
 from train import train_validate
 from test import test 
 from hilbert import peak_amplitude, peak_time
+from hilbert_1 import peak_time_and_amplitude
 # /home/923714256/0422_simulation/sim_Xiaodushan_20221025_220000_RUN0_CD_ZHAireS_0000
 # /home/923714256/0422_simulation/sim_Xiaodushan_20221025_220000_RUN0_CD_ZHAireS_0000NJ
 
@@ -172,19 +173,28 @@ def main(args):
              efield = efield_type)
         
 
-        peak_amplitude(dataloader = test_loader, 
-                       model = model, 
-                       device = "cpu", 
-                       min_snr = args.min_snr, 
-                       max_snr = args.max_snr,
-                       save_folder = save_folder)
+        # peak_amplitude(dataloader = test_loader, 
+        #                model = model, 
+        #                device = "cpu", 
+        #                min_snr = args.min_snr, 
+        #                max_snr = args.max_snr,
+        #                save_folder = save_folder)
         
-        peak_time(dataloader = test_loader, 
-                  model = model, 
-                  device = "cpu", 
-                  min_snr = args.min_snr,
-                  max_snr = args.max_snr, 
-                  save_folder = save_folder)
+        # peak_time(dataloader = test_loader, 
+        #           model = model, 
+        #           device = "cpu", 
+        #           min_snr = args.min_snr,
+        #           max_snr = args.max_snr, 
+        #           save_folder = save_folder)
+
+        peak_time_and_amplitude(
+                dataloader = test_loader, 
+                model = model, 
+                device = "cpu", 
+                min_snr = args.min_snr,
+                max_snr = args.max_snr, 
+                save_folder = save_folder
+        )
         
         print(f'All process are complete.')
 
@@ -192,7 +202,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process some traces.')
     parser.add_argument('--criterion', default='mse', choices=['mse', 'psnr'], help='Loss function: either MSE or PSNR')
 
-    parser.add_argument('--epochs', type = float, default = 1, help ='nums of epochs')
+    parser.add_argument('--epochs', type = float, default = 100, help ='nums of epochs')
 
     parser.add_argument('--min_zenith', type=float, default= 70, help='Minimum zenith angle')
 
@@ -202,9 +212,9 @@ if __name__ == '__main__':
 
     parser.add_argument('--test_mode',default= False, help='Whether to run in test mode')
     
-    parser.add_argument('--min_snr', type = float, default = 0.1, help ='minimum of snr for the data display')
+    parser.add_argument('--min_snr', type = float, default = 5, help ='minimum of snr for the data display')
 
-    parser.add_argument('--max_snr', type = float, default = 3, help ='maximum of snr for the data display')
+    parser.add_argument('--max_snr', type = float, default = 1e3, help ='maximum of snr for the data display')
 
     parser.add_argument('--trace_type', default = 'adc', choices= ['voltage','adc','efield'], help = 'Choose one of the trace type of training and testing')
     args = parser.parse_args()
