@@ -6,10 +6,11 @@ class ResidualBlock(nn.Module):
     """
     Residual Block for 1D convolutions.
     """
-    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=1):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=1, dropout_rate=0.1):
         super(ResidualBlock, self).__init__()
         self.conv1 = nn.Conv1d(in_channels, out_channels, kernel_size, stride=stride, padding=padding)
         self.relu = nn.ReLU(inplace=True)
+        self.dropout = nn.Dropout(p=dropout_rate)
         self.conv2 = nn.Conv1d(out_channels, out_channels, kernel_size, stride=stride, padding=padding)
 
         # Adjust the input channels if they do not match
@@ -20,6 +21,7 @@ class ResidualBlock(nn.Module):
 
         out = self.conv1(x)
         out = self.relu(out)
+        out = self.dropout(out)
         out = self.conv2(out)
 
         # Adjust the input channels if needed
@@ -28,6 +30,7 @@ class ResidualBlock(nn.Module):
 
         out += identity
         out = self.relu(out)
+        out = self.dropout(out)
         return out
 
 class DecoderResidualBlock(nn.Module):
@@ -64,20 +67,20 @@ class DecoderResidualBlock(nn.Module):
         return out
 
 class TimeDomainBranch(nn.Module):
-    def __init__(self, in_channels=3, conv_channels=64, res_channels=(32, 16)):
+    def __init__(self, in_channels=3, conv_channels=16, res_channels=(128, 256), dropout_rate=0.1):
         super(TimeDomainBranch, self).__init__()
-        # Initial convolution layer
         self.conv1 = nn.Conv1d(in_channels=in_channels, out_channels=conv_channels, kernel_size=5, stride=1, padding=2)
         self.relu = nn.ReLU()
-        # Residual blocks
-        self.res_block1 = ResidualBlock(in_channels=conv_channels, out_channels=res_channels[0], kernel_size=3, stride=1, padding=1)
-        self.res_block2 = ResidualBlock(in_channels=res_channels[0], out_channels=res_channels[1], kernel_size=3, stride=1, padding=1)
+        self.dropout = nn.Dropout(p=dropout_rate)
+        self.res_block1 = ResidualBlock(in_channels=conv_channels, out_channels=res_channels[0], kernel_size=3, stride=1, padding=1, dropout_rate=dropout_rate)
+        self.res_block2 = ResidualBlock(in_channels=res_channels[0], out_channels=res_channels[1], kernel_size=3, stride=1, padding=1, dropout_rate=dropout_rate)
         self.pool = nn.MaxPool1d(kernel_size=2, stride=2)
-        self.output_channels = res_channels[1] 
+        self.output_channels = res_channels[1]
 
     def forward(self, x):
         x = self.conv1(x)
         x = self.relu(x)
+        x = self.dropout(x)
         x = self.pool(x)
         
         x = self.res_block1(x)
@@ -86,20 +89,20 @@ class TimeDomainBranch(nn.Module):
         return x
 
 class FrequencyDomainBranch(nn.Module):
-    def __init__(self, in_channels=6, conv_channels=64, res_channels=(32, 16)):
+    def __init__(self, in_channels=6, conv_channels=16, res_channels=(128, 256), dropout_rate=0.1):
         super(FrequencyDomainBranch, self).__init__()
-        # Initial convolution layer
         self.conv1 = nn.Conv1d(in_channels=in_channels, out_channels=conv_channels, kernel_size=5, stride=1, padding=2)
         self.relu = nn.ReLU()
-        # Residual blocks
-        self.res_block1 = ResidualBlock(in_channels=conv_channels, out_channels=res_channels[0], kernel_size=3, stride=1, padding=1)
-        self.res_block2 = ResidualBlock(in_channels=res_channels[0], out_channels=res_channels[1], kernel_size=3, stride=1, padding=1)
+        self.dropout = nn.Dropout(p=dropout_rate)
+        self.res_block1 = ResidualBlock(in_channels=conv_channels, out_channels=res_channels[0], kernel_size=3, stride=1, padding=1, dropout_rate=dropout_rate)
+        self.res_block2 = ResidualBlock(in_channels=res_channels[0], out_channels=res_channels[1], kernel_size=3, stride=1, padding=1, dropout_rate=dropout_rate)
         self.pool = nn.MaxPool1d(kernel_size=2, stride=2)
-        self.output_channels = res_channels[1] 
+        self.output_channels = res_channels[1]
 
     def forward(self, x):
         x = self.conv1(x)
         x = self.relu(x)
+        x = self.dropout(x)
         x = self.pool(x)
         
         x = self.res_block1(x)
@@ -108,32 +111,51 @@ class FrequencyDomainBranch(nn.Module):
         return x
 
 class DualBranchAutoencoder(nn.Module):
-    def __init__(self, decoder_channels=[32, 64, 128, 3]):
+    def __init__(self, decoder_channels=[128, 64, 32, 3], dropout_rate=0.1):
         super(DualBranchAutoencoder, self).__init__()
-        self.time_branch = TimeDomainBranch()
-        self.freq_branch = FrequencyDomainBranch()
+        self.time_branch = TimeDomainBranch(dropout_rate=dropout_rate)
+        self.freq_branch = FrequencyDomainBranch(dropout_rate=dropout_rate)
+        self.dropout = nn.Dropout(p=dropout_rate)
 
         total_channels = self.time_branch.output_channels + self.freq_branch.output_channels
-         # Adjust decoder_channels to match the computed total_channels
-        decoder_channels = decoder_channels.copy()  # Ensure we don't modify the original list
-        decoder_channels[0] = total_channels  # Set the first element to total_channels
+        decoder_channels = decoder_channels.copy()
+        decoder_channels[0] = total_channels
         
-        self.decoder = nn.Sequential(
-            nn.ConvTranspose1d(in_channels=decoder_channels[0], out_channels=decoder_channels[1], kernel_size=3, stride=1, padding=1),
-            nn.ReLU(),
-            nn.ConvTranspose1d(in_channels=decoder_channels[1], out_channels=decoder_channels[2], kernel_size=3, stride=2, padding=1, output_padding=1),
-            nn.ReLU(),
-            nn.ConvTranspose1d(in_channels=decoder_channels[2], out_channels=decoder_channels[3], kernel_size=5, stride=2, padding=2, output_padding=1)
-        )
-        # Decoder with residual blocks
         # self.decoder = nn.Sequential(
-        #     DecoderResidualBlock(in_channels=128, out_channels=64, kernel_size=3, padding=1, output_padding=1),
+        #     nn.ConvTranspose1d(in_channels=decoder_channels[0], out_channels=decoder_channels[1], kernel_size=3, stride=1, padding=1),
         #     nn.ReLU(),
-        #     DecoderResidualBlock(in_channels=64, out_channels=32, kernel_size=3, padding=1, output_padding=1),
+        #     nn.Dropout(p=dropout_rate),
+        #     nn.ConvTranspose1d(in_channels=decoder_channels[1], out_channels=decoder_channels[2], kernel_size=3, stride=2, padding=1, output_padding=1),
         #     nn.ReLU(),
-        #     DecoderResidualBlock(in_channels=32, out_channels=3, kernel_size=5, padding=2, output_padding=1)
+        #     nn.Dropout(p=dropout_rate),
+        #     nn.ConvTranspose1d(in_channels=decoder_channels[2], out_channels=decoder_channels[3], kernel_size=5, stride=2, padding=2, output_padding=1)
         # )
-
+        # # Decoder with residual blocks
+        self.decoder = nn.Sequential(
+            DecoderResidualBlock(
+                in_channels = decoder_channels[0],
+                out_channels = decoder_channels[1],
+                kernel_size = 3,
+                padding = 1,
+                output_padding = 1
+            ),
+            nn.Dropout(p=dropout_rate),
+            DecoderResidualBlock(
+                in_channels = decoder_channels[1],
+                out_channels = decoder_channels[2],
+                kernel_size = 3,
+                padding = 1,
+                output_padding = 1
+            ),
+            nn.Dropout(p=dropout_rate),
+            DecoderResidualBlock(
+                in_channels = decoder_channels[2],
+                out_channels = decoder_channels[3],
+                kernel_size = 5,
+                padding = 2,
+                output_padding = 1
+            )
+        )
     def forward(self, x):
         # Time domain processing
         time_features = self.time_branch(x)  # Input shape: [batch_size, 3, signal_length]
